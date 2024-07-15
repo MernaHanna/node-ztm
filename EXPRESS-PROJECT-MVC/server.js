@@ -1,8 +1,15 @@
 // when naming the file server.js this is a special case for npm start to work without adding any script to package.json
 const express = require('express');
+const path = require('path');
 const messagesRouter = require('./routes/messages.router');
 const friendsRouter = require('./routes/friends.router');
 const app = express();
+
+// to tell express that we will use handlebars as the template engine / view engine
+app.set('view engine', 'hbs');
+// set the path of the templates / views
+// we need to use static path
+app.set('views', path.join(__dirname, 'views'));
 
 const PORT = 3000;
 
@@ -18,9 +25,31 @@ app.use((req, res, next) => {
   // baseUrl => '/friends/' url => ''=> may hold anything else after the baseUrl
 });
 
+// to serve static files eg html from public
+// the path is static to where we start our node application
+// if we try to run the server from the routes folder by using node ../server.js it won't find the path public therefore we use the built in path variable
+// mounted to /site instead of being available at the root
+// this is not restful.. we are not using collections here
+// instead we tell the browser to render whatever in the public folder
+// it is better to deliver these files not from node but instead from a content delivery network (cdn)
+// eg: Akamai and Amazon cloudfront
+// they provide local servers so that users are served the website in the quickest possible way
+// and node can focus on RESTFUL APIs
+// only host in node in small sized applications
+// app.use('/site', express.static('public'));
+app.use('/site', express.static(path.join(__dirname, 'public')));
 // express.json automatically detects if the request has a content type json header and thus parse the body of the request
 // without this step we cannot access the body of the request
 app.use(express.json());
+
+// to set the root url to use our hbs template index
+// the variables are sent in the object (second argument of render function - the first is the name of the hbs template)
+app.get('/', (req, res) => {
+    res.render('index', {
+        title: 'My Friends are VERYY Clever',
+        caption: 'Let\'s go skiing!'
+    });
+})
 
 // to use the middleware (router)
 // mounting the friends router on the app object
