@@ -2,8 +2,10 @@
 
 // module.exports = planets;
 
-const parse = require('csv-parse');
 const fs = require('fs');
+const path = require('path');
+
+const { parse } = require('csv-parse');
 
 const habitablePlanets = [];
 
@@ -22,36 +24,46 @@ function isHabitablePlanet(planet) {
   });
   promise.then((result) => {
   });
+  // alternatively
   const result = await promise;
   console.log(result);
 */
 
 function loadPlanetsData() {
-  fs.createReadStream('../../data/kepler_data.csv')
-    .pipe(
-      parse({
-        comment: '#', // treat lines that start with this character as comment
-        columns: true, // return each object in csv file as a js object with (key: value) pairs rather than just as an array of values
-      })
+  return new Promise((resolve, reject) => {
+    fs.createReadStream(
+      path.join(__dirname, '..', '..', 'data', 'kepler_data.csv')
     )
-    .on('data', (data) => {
-      if (isHabitablePlanet(data)) {
-        habitablePlanets.push(data);
-      }
-    })
-    .on('error', (err) => {
-      console.log(err);
-    })
-    .on('end', () => {
-      console.log(
-        habitablePlanets.map((planet) => {
-          return planet['kepler_name'];
+      .pipe(
+        parse({
+          comment: '#', // treat lines that start with this character as comment
+          columns: true, // return each object in csv file as a js object with (key: value) pairs rather than just as an array of values
         })
-      );
-      console.log(`${habitablePlanets.length} habitable planets found!`);
-    });
+      )
+      .on('data', (data) => {
+        if (isHabitablePlanet(data)) {
+          habitablePlanets.push(data);
+        }
+      })
+      .on('error', (err) => {
+        console.log(err);
+        reject(err);
+      })
+      .on('end', () => {
+        // console.log(
+        //   habitablePlanets.map((planet) => {
+        //     return planet['kepler_name'];
+        //   })
+        // );
+        console.log(`${habitablePlanets.length} habitable planets found!`);
+        resolve();
+        // we don't return data in the resolve here because we are exporting and using the habitable planets directly
+        // this is just to tell us that the promise finished executing and the data is ready
+      });
+  });
 }
 
 module.exports = {
+  loadPlanetsData,
   planets: habitablePlanets,
 };

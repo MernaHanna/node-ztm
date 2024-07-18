@@ -1,6 +1,8 @@
 const http = require('http');
 const app = require('./app');
 
+const { loadPlanetsData } = require('./models/planets.model');
+
 // another common way to start our express server
 // helps to make the code more organized by removing all express code and logic to app.js
 // this allows us to respond to http requests and other typres of communications eg web sockets
@@ -12,6 +14,15 @@ const server = http.createServer(app);
 // this is a way to set env variables
 const PORT = process.env.PORT || 8000;
 
-server.listen(PORT, () => {
-    console.log(`Listening on port ${PORT}...`)
-});
+// because await can only be called in async function
+async function startServer() {
+  // to populate data on startup
+  await loadPlanetsData();
+
+  server.listen(PORT, () => {
+    console.log(`Listening on port ${PORT}...`);
+  });
+}
+
+// nothing happens after start therefore we don't need to use await
+startServer();
