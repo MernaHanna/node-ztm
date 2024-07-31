@@ -3,6 +3,7 @@ const {
   getAllLaunches,
   addNewLaunch,
   existsLaunchWithId,
+  abortLaunchById,
 } = require('../../models/launches.model');
 
 // to handle the naming conflict between function getAllLaunches in controller and model we have two options
@@ -48,7 +49,8 @@ function httpAddNewLaunch(req, res) {
 }
 
 function httpAbortLaunch(req, res) {
-  const launchId = req.params.id;
+  // params are strings => need to be converted to number
+  const launchId = Number(req.params.id);
 
   // if launch doesn't exist
   if (!existsLaunchWithId(launchId)) {
@@ -58,6 +60,7 @@ function httpAbortLaunch(req, res) {
   }
 
   // if launch does exist
+  const aborted = abortLaunchById(launchId);
   return res.status(200).json(aborted);
 }
 
