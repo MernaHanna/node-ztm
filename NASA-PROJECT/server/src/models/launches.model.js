@@ -1,3 +1,5 @@
+// const launches = require('./launches.mongo');
+
 const launches = new Map();
 
 // a state to keep track of the latest flight number

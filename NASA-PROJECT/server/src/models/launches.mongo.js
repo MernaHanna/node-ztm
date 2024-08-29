@@ -59,3 +59,11 @@ const launchesSchema = new mongoose.Schema({
 //   upcoming: Boolean,
 //   success: Boolean,
 // });
+
+// map the schema to Launch model
+// the name of the model should always be a singular name of the collection
+// mongo will take the name pluralize it and turn it to lower case and use this name to connect to a collection in the database
+// connect launchesSchema with the "launches" collection
+// collection should always be plural nouns.. they represent many large documents
+// this will create a new object called Launch => model
+module.exports = mongoose.model('Launch', launchesSchema);
