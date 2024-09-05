@@ -1,5 +1,3 @@
-// const planets = require('./planets.mongo');
-
 // const planets = [];
 
 // module.exports = planets;
@@ -8,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { parse } = require('csv-parse');
+const planets = require('./planets.mongo');
 
 const habitablePlanets = [];
 
@@ -42,9 +41,14 @@ function loadPlanetsData() {
           columns: true, // return each object in csv file as a js object with (key: value) pairs rather than just as an array of values
         })
       )
-      .on('data', (data) => {
+      .on('data', async (data) => {
         if (isHabitablePlanet(data)) {
-          habitablePlanets.push(data);
+          // create operation is asynchronous
+          // TODO: Replace below create with upsert
+          // upsert => insert + update
+          await planets.create({
+            keplerName: data.kepler_name,
+          });
         }
       })
       .on('error', (err) => {
@@ -65,8 +69,22 @@ function loadPlanetsData() {
   });
 }
 
-function getAllPlanets() {
-  return habitablePlanets;
+async function getAllPlanets() {
+  // the first argument is a filter if not set then mongo will return all the data without any filters
+  // eg => {keplerName: 'Kepler-62 f'}
+  // the second argument is the projection => the list of fields included in the result
+  // projection can be: {'keplerName': 0} => not included
+  // or: {'keplerName': 1} => included
+  // or: 'keplerName anotherField' => to include multiple fields as a string
+  // or: '-keplerName anotherField' => add - before the field name to exclude it
+  return await planets.find(
+    {
+      keplerName: 'Kepler-62 f',
+    },
+    {
+      keplerName: 0,
+    }
+  );
 }
 
 // module.exports = {
