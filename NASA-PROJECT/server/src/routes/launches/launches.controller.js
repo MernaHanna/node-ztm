@@ -1,7 +1,6 @@
-// const { launches } = require('../../models/launches.model');
 const {
   getAllLaunches,
-  addNewLaunch,
+  scheduleNewLaunch,
   existsLaunchWithId,
   abortLaunchById,
 } = require('../../models/launches.model');
@@ -9,17 +8,17 @@ const {
 // to handle the naming conflict between function getAllLaunches in controller and model we have two options
 // option one is to require the model itself with destructuring and access the function using launchesModel.getAllLaunches
 // option two to rename the controller functions handling requests and responses by adding http to their names
-function httpGetAllLaunches(req, res) {
+async function httpGetAllLaunches(req, res) {
   // maps are not json objects
   // launches.values will return iterator object but this is not json as well
   // we use array.from to convert an iterator object to a javascript object or array
   // return res.status(200).json(Array.from(launches.values()));
   // the controller should handle the request only and not convert data from the model. this should be abstracted
   // the called getAllLaunches function here is called a data access function from the model
-  return res.status(200).json(getAllLaunches());
+  return res.status(200).json(await getAllLaunches());
 }
 
-function httpAddNewLaunch(req, res) {
+async function httpAddNewLaunch(req, res) {
   const launch = req.body;
 
   if (
@@ -44,16 +43,17 @@ function httpAddNewLaunch(req, res) {
       error: 'Invalid launch date',
     });
   }
-  addNewLaunch(launch);
+  await scheduleNewLaunch(launch);
   return res.status(201).json(launch);
 }
 
-function httpAbortLaunch(req, res) {
+async function httpAbortLaunch(req, res) {
   // params are strings => need to be converted to number
   const launchId = Number(req.params.id);
 
   // if launch doesn't exist
-  if (!existsLaunchWithId(launchId)) {
+  const existsLaunch = await existsLaunchWithId(launchId);
+  if (!existsLaunch) {
     return res.status(404).json({
       error: 'Launch not found',
     });
@@ -61,7 +61,14 @@ function httpAbortLaunch(req, res) {
 
   // if launch does exist
   const aborted = abortLaunchById(launchId);
-  return res.status(200).json(aborted);
+  if (!aborted) {
+    return res.status(400).json({
+      error: 'Launch not aborted',
+    });
+  }
+  return res.status(200).json({
+    ok: true,
+  });
 }
 
 module.exports = {

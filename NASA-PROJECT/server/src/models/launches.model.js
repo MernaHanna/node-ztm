@@ -1,9 +1,11 @@
-// const launches = require('./launches.mongo');
+const launchesDatabase = require('./launches.mongo');
+//we are in a data access layer and thus we need to access lower level layers and hence mongo files and not model files
+const planets = require('./planets.mongo');
 
-const launches = new Map();
+const DEFAULT_FLIGHT_NUMBER = 100;
 
 // a state to keep track of the latest flight number
-let latestFlightNumber = 100;
+// let latestFlightNumber = 100;
 
 const launch = {
   flightNumber: 100,
@@ -16,55 +18,99 @@ const launch = {
   success: true,
 };
 
-launches.set(launch.flightNumber, launch);
+// launches.set(launch.flightNumber, launch);
+saveLaunch(launch);
 
 // launches.get(100) === launch
 // launches.get returns the corresponding launch object to the flightNumber 100
 
-function existsLaunchWithId(launchId) {
-  return launches.has(launchId);
+async function existsLaunchWithId(launchId) {
+  // we may use launchesDatabase.findById but then will find by mongoId not flightnumber
+  return await launchesDatabase.findOne({ flightNumber: launchId });
+}
+
+async function getLatestFlightNumber() {
+  // flightNumber to sort ascending
+  // -flightNumber to sort descending
+  const latestLaunch = await launchesDatabase.findOne().sort('-flightNumber');
+  console.log(latestLaunch);
+
+  if (!latestLaunch) {
+    return DEFAULT_FLIGHT_NUMBER;
+  }
+
+  return latestLaunch.flightNumber;
 }
 
 // keep the map as an internal implementation and instead return the data in the formate needed - converted into array
-function getAllLaunches() {
-  return Array.from(launches.values());
-}
-
-function addNewLaunch(launch) {
-  latestFlightNumber++;
-  // using launch.flightNumber as key is not api friendly.. we should auto increment the value here
-  // use Object.assign to assign out latestFlightNumber value to the launch object and replace any other flightNumber value that may be present on the launch object
-  // customers - upcoming - success are not sent by the client
-  launches.set(
-    latestFlightNumber,
-    Object.assign(launch, {
-      flightNumber: latestFlightNumber,
-      customers: ['ZTM', 'NASA'],
-      upcoming: true,
-      success: true,
-    })
+async function getAllLaunches() {
+  return await launchesDatabase.find(
+    {},
+    {
+      _id: 0,
+      __v: 0,
+    }
   );
 }
 
-function abortLaunchById(launchId) {
-  // hard delete
-  // launch.delete(launchId);
+async function saveLaunch(launch) {
+  // findone returns a javascript object matching the criteria
+  const planet = await planets.findOne({
+    keplerName: launch.target,
+  });
 
-  // soft delete (mark as aborted)
-  // althoush object is const we can change its properties
-  // it is always better to check if a map actually has the value before getting it and that is why separating the two functions is better
-  // also separating them gives us a new function to check if a launch exist first to be used anywhere else in the code and routing
-  // this is not an expensive process too
-  const aborted = launches.get(launchId);
-  aborted.upcoming = false;
-  aborted.success = false;
-  return aborted;
+  if (!planet) {
+    // here we don't have access to requests nor responses
+    // therefore we signal errors by returning invalid objects like null or undefined
+    // but preferably throw an error (this is a built in node function)
+    // new is to make sure that we are returning a new instance of the Error object
+    throw new Error('No matching planet found');
+  }
+
+  // use findOneAndUpdate instead of updateOne to prevent setting "$setOnInsert" property on the saved object
+  // which will cause a security vulnerability because it reveals to hackers that the database used is mongo
+  await launchesDatabase.findOneAndUpdate(
+    {
+      flightNumber: launch.flightNumber,
+    },
+    launch,
+    {
+      upsert: true,
+    }
+  );
+}
+
+// instead of addNewLaunch
+async function scheduleNewLaunch(launch) {
+  const newFlightNumber = (await getLatestFlightNumber()) + 1;
+  const newLaunch = Object.assign(launch, {
+    success: true,
+    upcoming: true,
+    customers: ['ZTM', 'NASA'],
+    flightNumber: newFlightNumber,
+  });
+
+  await saveLaunch(newLaunch);
+}
+
+async function abortLaunchById(launchId) {
+  const aborted = await launchesDatabase.updateOne(
+    {
+      flightNumber: launchId,
+    },
+    {
+      upcoming: false,
+      success: false,
+    }
+  );
+
+  return aborted.modifiedCount === 1;
 }
 
 // it is a good practice to define the export in the same order of the functions definition
 module.exports = {
   existsLaunchWithId,
   getAllLaunches,
-  addNewLaunch,
+  scheduleNewLaunch,
   abortLaunchById,
 };
